@@ -1,9 +1,10 @@
 const puppeteer = require('puppeteer');
 const baseUrl = 'https://www.tripadvisor.com.vn'
 const Excel = require('exceljs');
+const _ = require('lodash');
 
 const options = {
-    filename: 'myfile.xlsx',
+    filename: 'myfile2.xlsx',
     useStyles: true,
     useSharedStrings: true,
 };
@@ -81,17 +82,13 @@ function writeData(data) {
 }
 
 getAllComment().then(async (result) => {
-    let data = [];
-    let promise = [];
-    result.forEach(link => {
-        promise.push(getCommentDetail(link));
-    });
-    let arrayData = await Promise.all(promise);
-    arrayData.forEach(a => {
-        data = data.concat(a);
-    });
-    writeData(data);
-    console.log(data);
+    const arrayData = [];
 
+    for (const link of result) {
+        arrayData.push(await getCommentDetail(link));
+    }
+
+    const data = _.flatten(arrayData);
+    writeData(data);
 })
 
