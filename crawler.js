@@ -6,7 +6,7 @@ async function getAllPost() {
         defaultViewport: null
     });
     const page = await browser.newPage()
-    await page.goto('https://www.facebook.com/pg/hutong.hotpotparadise/posts/');
+    await page.goto('https://www.facebook.com/pg/hutong.hotpotparadise/posts');
     let result = await page.evaluate(() => {
         let linkPosts = [];
         document.querySelectorAll('[data-testid="UFI2CommentsCount/root"]').
@@ -16,7 +16,6 @@ async function getAllPost() {
         linkPosts = linkPosts.filter(link => link.includes('post'));
         return linkPosts;
     });
-    // browser.close();
     return result
 }
 
@@ -24,18 +23,15 @@ async function getDetailPost(link) {
     const page = await browser.newPage();
     await page.goto(link);
     let result = await page.evaluate(() => {
-        let tagSpan = document.querySelector('[data-testid="UFI2CommentsCount/root"]').parentNode;
+        let tagSpan = document.querySelectorAll('[data-testid="UFI2CommentsCount/root"]')[0];
+        console.log('in here');
+        console.log("tagSpan", tagSpan);
         return tagSpan;
     });
-    await page.click(result);
     return result;
 }
 
 getAllPost().then(async result => {
-    // console.log(result)
-    // // result.forEach(link => {
-    // //     getDetailPost(link);
-    // // })
     let detail = await getDetailPost(result[1]);
     console.log(detail);
 })
