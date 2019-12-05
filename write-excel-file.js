@@ -1,6 +1,7 @@
 const xlsx = require('node-xlsx');
 const fs = require('fs');
 const _ = require('lodash');
+const moment = require('moment');
 
 exports.run = (fileName, data) => {
     const comments = _.flatten(data).map(comment => {
@@ -10,7 +11,7 @@ exports.run = (fileName, data) => {
             comment.author,
             comment.authorId,
             comment.content,
-            comment.publishedDate,
+            moment(parseInt(comment.publishedDate * 1000)).format('DD-MM-YYYY'),
             comment.brand,
             comment.likes,
         ];

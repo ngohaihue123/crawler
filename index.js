@@ -1,11 +1,12 @@
 const puppeteer = require('puppeteer');
 const _ = require('lodash');
+const moment = require('moment');
 
 const writeFile = require('./write-excel-file');
 
 const LINK_FANPAGE = 'https://www.facebook.com/pg/hutong.hotpotparadise/posts';
-const FILE_NAME = 'file3';
-const HEIGTH_SCROLL = 100000;
+const maxDate = moment('2019-04-10').toDate();
+const minDate = moment('2019-03-10').toDate();
 
 async function autoScroll(page) {
     await page.evaluate(async () => {
@@ -36,10 +37,16 @@ async function autoScroll(page) {
     await new Promise(function (resolve) {
         setTimeout(resolve, 2000)
     });
+
+    const time = await getMinTime(page);
+    if (time < minDate.valueOf()) {
+        return true;
+    }
+    return false;
 }
 
 async function getDetailPost(link, page) {
-    await page.goto(link);
+    await page.goto(link, { waitUntil: 'load', timeout: 0 });
     await page.waitForResponse(response => response.ok());
 
     const result = await page.evaluate(async () => {
@@ -178,13 +185,39 @@ async function getLinkPost(page) {
     let result = await page.evaluate(async () => {
         let linkPosts = [];
 
-        document.querySelectorAll('[data-testid="UFI2CommentsCount/root"]').
-            forEach(a => {
-                linkPosts.push(a.getAttribute('href'));
+        document.querySelectorAll('[data-insertion-position]').
+            forEach(div => {
+                const aTag = div.querySelector('[data-testid="UFI2CommentsCount/root"]');
+                const ele = div.querySelector('[data-testid="story-subtitle"]');
+                const timeElement = ele.querySelector('abbr[data-utime]');
+                const time = timeElement && timeElement.getAttribute('data-utime');
+                linkPosts.push({
+                    time: time * 1000,
+                    link: aTag && aTag.getAttribute('href'),
+                });
             });
-        linkPosts = linkPosts.filter(link => link.includes('post'));
+
+        linkPosts = linkPosts.filter(post => post.link && post.link.includes('post'));
         console.log(linkPosts);
         return linkPosts;
+    });
+
+    return result;
+}
+
+async function getMinTime(page) {
+    let result = await page.evaluate(async () => {
+        let minDate = (new Date()).valueOf();
+
+        document.querySelectorAll('[data-testid="story-subtitle"]').
+            forEach(ele => {
+                const timeElement = ele.querySelector('abbr[data-utime]');
+                const time = timeElement && timeElement.getAttribute('data-utime');
+                if (time * 1000 < minDate) {
+                    minDate = time * 1000;
+                }
+            });
+        return minDate;
     });
 
     return result;
@@ -199,25 +232,27 @@ async function getLinkPost(page) {
     await page.setViewport({ width: 1351, height: 595 })
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
-    await page.goto(LINK_FANPAGE);
+    await page.goto(LINK_FANPAGE, { waitUntil: 'load', timeout: 0 });
 
-    await autoScroll(page);
+    let stopScroll = await autoScroll(page);
 
-    let count = 0;
-    while (count++ < 4) {
-        await autoScroll(page);
+    // let count = 0;
+    // while (count++ < 1 || stopScroll) {
+    while (!stopScroll) {
+        stopScroll = await autoScroll(page);
         // await page.waitForResponse(response => response.ok());
     }
 
     let result = await getLinkPost(page);
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify(result, null, 2));
 
     const data = [];
+    result = result.filter(res => res.time <= maxDate.valueOf() && res.time >= minDate.valueOf());
     for (const resultPage of result) {
-        const detail = await getDetailPost(resultPage, page);
+        const detail = await getDetailPost(resultPage.link, page);
         data.push(detail);
     }
 
-    await writeFile.run(FILE_NAME, data);
+    await writeFile.run('file4', data);
     await browser.close();
 })();
