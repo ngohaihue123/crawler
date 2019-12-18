@@ -5,8 +5,8 @@ const moment = require('moment');
 const writeFile = require('./write-excel-file');
 
 const LINK_FANPAGE = 'https://www.facebook.com/pg/hutong.hotpotparadise/posts';
-const maxDate = moment('2019-04-10').toDate();
-const minDate = moment('2019-03-10').toDate();
+const maxDate = moment('2019-12-16').toDate();
+const minDate = moment('2019-12-01').toDate();
 
 async function autoScroll(page) {
     await page.evaluate(async () => {
@@ -20,13 +20,13 @@ async function autoScroll(page) {
 
         await new Promise(resolve => {
             let totalHeight = 0;
-            const distance = 500;
+            const distance = 100;
             const timer = setInterval(() => {
                 const scrollHeight = document.body.scrollHeight;
                 window.scrollBy(0, distance);
                 totalHeight += distance;
                 console.log('SCROLL', totalHeight);
-                if (totalHeight >= scrollHeight || totalHeight > 100000) {
+                if (totalHeight >= scrollHeight || totalHeight > 10000) {
                     clearInterval(timer);
                     resolve();
                 }
@@ -39,7 +39,7 @@ async function autoScroll(page) {
     });
 
     const time = await getMinTime(page);
-    if (time < minDate.valueOf()) {
+    if (time <= minDate.valueOf()) {
         return true;
     }
     return false;
@@ -185,7 +185,7 @@ async function getLinkPost(page) {
     let result = await page.evaluate(async () => {
         let linkPosts = [];
 
-        document.querySelectorAll('[data-insertion-position]').
+        document.querySelectorAll('.userContentWrapper').
             forEach(div => {
                 const aTag = div.querySelector('[data-testid="UFI2CommentsCount/root"]');
                 const ele = div.querySelector('[data-testid="story-subtitle"]');
@@ -244,15 +244,16 @@ async function getMinTime(page) {
     }
 
     let result = await getLinkPost(page);
+
     console.log(JSON.stringify(result, null, 2));
 
     const data = [];
-    result = result.filter(res => res.time <= maxDate.valueOf() && res.time >= minDate.valueOf());
-    for (const resultPage of result) {
+    const validResult = result.filter(res => res.time <= maxDate.valueOf() && res.time >= minDate.valueOf());
+    for (const resultPage of validResult) {
         const detail = await getDetailPost(resultPage.link, page);
         data.push(detail);
     }
 
-    await writeFile.run('file4', data);
+    await writeFile.run('file5', data);
     await browser.close();
 })();
